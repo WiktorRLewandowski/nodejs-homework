@@ -10,6 +10,7 @@ const {
   removeContact,
   addContact,
   updateContact,
+  addToFavourites
 } = require('../../models/contacts')
 
 const schema = Joi.object().keys({
@@ -32,6 +33,7 @@ router.get('/', async (req, res, next) => {
      })
   } catch(error) {
     console.log(error.message)
+    next(error)
   }  
 })
 
@@ -40,7 +42,7 @@ router.get('/', async (req, res, next) => {
 router.get('/:contactId', async (req, res, next) => {
   const { contactId } = req.params   
   try {
-    const [contact] = await getContactById(contactId)
+    const contact = await getContactById(contactId)
     if(contact) {
       res.json({ 
         status: 'success',
@@ -51,11 +53,12 @@ router.get('/:contactId', async (req, res, next) => {
       res.json({
         status: 'failed',
         code: 404,
-        message: "Contact not found"
+        message: `Contact with ID: ${contactId} not found`
       })
     }   
   } catch(error){
       console.log(error.message);
+      next(error)
   }  
 })
 
@@ -88,7 +91,7 @@ router.post('/', async (req, res, next) => {
   }
   catch(error) {
     console.log(error.message)
-    // next(error)
+    next(error)
   }
 })
 
@@ -97,11 +100,11 @@ router.post('/', async (req, res, next) => {
 router.delete('/:contactId', async (req, res, next) => {
   const { contactId } = req.params
   try {
-    const contacts = await listContacts()
-    const isExisting = contacts.some(el => el.id === contactId)
-    if (isExisting) {
-      removeContact(contactId)
-      res.status(204).json({
+    const contacts = await getContactById(contactId)
+    if (contacts) {
+      await removeContact(contactId)
+      
+      res.json({
         status: 'success',
         code: 204,
         message: `Contact with ID: ${contactId} deleted`
@@ -116,6 +119,7 @@ router.delete('/:contactId', async (req, res, next) => {
   }
   catch(error) {
     console.log(error.message)
+    next(error)
   }
   
 })
@@ -136,7 +140,7 @@ router.put('/:contactId', async (req, res, next) => {
     }
     if (Object.keys(req.body)[0]) {
       await updateContact(contactId, req.body)
-      const [contact] = await getContactById(contactId)
+      const contact = await getContactById(contactId)
       if (contact) {
         res.json({ 
           status: 'success',
@@ -161,8 +165,46 @@ router.put('/:contactId', async (req, res, next) => {
   }
   catch(error) {
     console.log(error.message)
-    // next(error)
+    next(error)
   } 
 })
+
+// ================PATCH===================
+
+router.patch("/:contactId", async (req, res, next) => {
+  const { contactId } = req.params
+  const { favourites } = req.body
+  console.log(favourites)
+  try {
+    if (favourites === undefined) {
+      return res.status(400).json({
+        status: "failed",
+        code: 400,
+        message: "You have to set value - true or false - to add contact to your favourites"
+      })
+    }
+
+    const updatedContact = await addToFavourites(contactId, favourites)
+
+    if (updatedContact) {
+      res.json({
+        status: "success",
+        code: 200,
+        data: updatedContact,
+      })
+    } else {
+      res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Contact not found!"
+      })
+    }
+
+  } catch(error) {
+    console.log(error.message)
+    next(error)
+  }
+})
+
 
 module.exports = router
