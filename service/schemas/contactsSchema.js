@@ -11,12 +11,12 @@ const contacts = new Schema({
     },
     email: {
         type: String,
-        unique: [true, 'There already is such e-mail in our database!'],
+        // unique: [true, 'There already is such e-mail in our database!'],
         required: [true, 'Enter contact e-mail']
     },
     phone: {
         type: String,
-        unique: [true, 'There already is such phone number in our database!']
+        // unique: [true, 'There already is such phone number in our database!']
     },
     favourites: {
         type: Boolean,

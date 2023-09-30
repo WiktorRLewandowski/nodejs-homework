@@ -9,11 +9,12 @@ const secret = process.env.SECRET
 const {
     ListUsers, 
     AddUser,
+    logOut,
+    currentUser
 } = require('../../models/users')
 
 const User = require('../../service/schemas/usersSchema')
 const auth = require('../../config/authorization')
-// const auth = require('../../config/authorization')
 
 // ===============GET===================
 
@@ -36,7 +37,7 @@ router.get('/', async (req, res, next)=> {
 router.post('/signup', async (req, res, next) => {
     const { email, password } = req.body
     const checkUser = await User.findOne({email}).lean()
-
+    console.log(email)
     if(checkUser) {
         return res.status(409).json({
             status: "error",
@@ -77,7 +78,6 @@ router.post('/login', async (req, res, next) => {
     const { email, password } = req.body
     const user = await User.findOne({ email })
     const validPassword = await bcrypt.compare(password, user.password)
-
     if (!user || !validPassword) {
         return res.status(400).json({
             status: 'error',
@@ -88,7 +88,7 @@ router.post('/login', async (req, res, next) => {
     }
 
     const payload = {
-        id: user.id,
+        id: user._id,
         username: user.email
     }
 
@@ -107,10 +107,46 @@ router.post('/login', async (req, res, next) => {
 })
 
 router.post('/logout', auth, async (req, res, next) => {
-    console.log(req.user)
-    const authorizationHeader = req.header("Authorization");
-    console.log(authorizationHeader)
+   const { _id } = req.user
+   const user = await User.findOne({ _id }).lean()
+   try {
+        if(user) {
+            await logOut(_id)
+            res.status(204)
+        } else {
+            return res.status(401).json({
+                status: 'Unauthorized',
+                code: 401,
+                message: 'Not authorized'
+            }) 
+        }
+   } catch(e) {
+        console.log(e.message)
+        next(e)
+   }
+})
 
+router.get('/current', auth, async (req, res, next) => {
+    const { email, subscription, _id } = req.user
+    const user = await currentUser(_id)
+    try {
+        if(user) {
+            res.json({
+                status: "success",
+                code: 200,
+                message: { email, subscription }
+            })
+        } else {
+            return res.status(401).json({
+                status: "Unauthorized",
+                code: 401,
+                message: 'Not authorized'
+            })
+        }
+    } catch(e){
+        console.log(e.message)
+        next(e)
+    }
 })
 
 module.exports = router

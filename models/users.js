@@ -11,7 +11,18 @@ const AddUser = async (body) => {
     return await User.create({ email, password })
 }
 
+const logOut = userId => {
+
+    return User.findByIdAndUpdate(userId, { token: null }, { new:true })
+}
+
+const currentUser = userId => {
+    return User.findById(userId)
+} 
+
 module.exports = {
     ListUsers,
-    AddUser
+    AddUser,
+    logOut,
+    currentUser
 }
