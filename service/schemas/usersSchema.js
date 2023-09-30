@@ -21,7 +21,7 @@ const users = new Schema({
         type: String,
         default: null,
     },
-})
+}, {versionKey: false})
 
 const Users = model('users', users)
 

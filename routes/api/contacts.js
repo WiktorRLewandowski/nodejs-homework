@@ -13,6 +13,8 @@ const {
   addToFavourites
 } = require('../../models/contacts')
 
+const auth = require('../../config/authorization')
+
 const schema = Joi.object().keys({
   name: Joi.string().alphanum().min(3).max(30),
   email: Joi.string().email(),
@@ -21,7 +23,7 @@ const schema = Joi.object().keys({
 
 // =======================GET==============================
 
-router.get('/', async (req, res, next) => {
+router.get('/', auth, async (req, res, next) => {
   try {
     const contacts = await listContacts()
     res.json({ 
@@ -39,7 +41,7 @@ router.get('/', async (req, res, next) => {
 
 // ========================GET by ID==============================
 
-router.get('/:contactId', async (req, res, next) => {
+router.get('/:contactId', auth, async (req, res, next) => {
   const { contactId } = req.params   
   try {
     const contact = await getContactById(contactId)
@@ -64,7 +66,7 @@ router.get('/:contactId', async (req, res, next) => {
 
 // ====================POST=========================
 
-router.post('/', async (req, res, next) => {
+router.post('/', auth, async (req, res, next) => {
   try {
     const validateBody = schema.validate(req.body)
     if(validateBody.error) {
@@ -97,7 +99,7 @@ router.post('/', async (req, res, next) => {
 
 // ======================DELETE===================================
 
-router.delete('/:contactId', async (req, res, next) => {
+router.delete('/:contactId', auth, async (req, res, next) => {
   const { contactId } = req.params
   try {
     const contacts = await getContactById(contactId)
@@ -127,7 +129,7 @@ router.delete('/:contactId', async (req, res, next) => {
 
 // ========================PUT================================
 
-router.put('/:contactId', async (req, res, next) => {
+router.put('/:contactId', auth, async (req, res, next) => {
   const { contactId } = req.params
   try {
     const validateBody = schema.validate(req.body)
@@ -171,7 +173,7 @@ router.put('/:contactId', async (req, res, next) => {
 
 // ================PATCH===================
 
-router.patch("/:contactId", async (req, res, next) => {
+router.patch("/:contactId", auth, async (req, res, next) => {
   const { contactId } = req.params
   const { favourites } = req.body
   console.log(favourites)
