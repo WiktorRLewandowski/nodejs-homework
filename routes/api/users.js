@@ -10,11 +10,13 @@ const {
     ListUsers, 
     AddUser,
     logOut,
-    currentUser
+    currentUser,
+    addAvatar
 } = require('../../models/users')
 
 const User = require('../../service/schemas/usersSchema')
 const auth = require('../../config/authorization')
+const upload = require('../../config/multer')
 
 // ===============GET===================
 
@@ -112,7 +114,7 @@ router.post('/logout', auth, async (req, res, next) => {
    try {
         if(user) {
             await logOut(_id)
-            res.status(204)
+            res.status(204).redirect('/api/users')
         } else {
             return res.status(401).json({
                 status: 'Unauthorized',
@@ -146,6 +148,35 @@ router.get('/current', auth, async (req, res, next) => {
     } catch(e){
         console.log(e.message)
         next(e)
+    }
+})
+
+router.post('/avatar', auth, upload.single('avatar'), async (req, res, next) => {
+    const avatar = req.file
+    const { _id } = req.user
+    const { path } = avatar
+    const { email } = req.user
+
+    if (!avatar) {
+        return res.status(400).json({
+            status: "error",
+            code: 400,
+            message: 'Could not find any file!'
+        })
+    }
+
+    try {
+        const newAvatarUrl = await addAvatar(path, _id)
+        return res.json({
+            status: 'success',
+            code: 200,
+            message:{
+                email,
+                newAvatar: newAvatarUrl
+            }
+        })
+    } catch(e) {
+        res.status(500).json('Could not update your avatar, sorry', e.message)
     }
 })
 
