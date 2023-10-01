@@ -13,6 +13,8 @@ const {
   addToFavourites
 } = require('../../models/contacts')
 
+const auth = require('../../config/authorization')
+
 const schema = Joi.object().keys({
   name: Joi.string().alphanum().min(3).max(30),
   email: Joi.string().email(),
@@ -21,9 +23,10 @@ const schema = Joi.object().keys({
 
 // =======================GET==============================
 
-router.get('/', async (req, res, next) => {
+router.get('/', auth, async (req, res, next) => {
+  const { _id } = req.user
   try {
-    const contacts = await listContacts()
+    const contacts = await listContacts(_id)
     res.json({ 
       status: 'success',
       code: 200,
@@ -39,10 +42,11 @@ router.get('/', async (req, res, next) => {
 
 // ========================GET by ID==============================
 
-router.get('/:contactId', async (req, res, next) => {
-  const { contactId } = req.params   
+router.get('/:contactId', auth, async (req, res, next) => {
+  const { contactId } = req.params
+  const { _id } = req.user  
   try {
-    const contact = await getContactById(contactId)
+    const contact = await getContactById(contactId, _id)
     if(contact) {
       res.json({ 
         status: 'success',
@@ -64,7 +68,8 @@ router.get('/:contactId', async (req, res, next) => {
 
 // ====================POST=========================
 
-router.post('/', async (req, res, next) => {
+router.post('/', auth, async (req, res, next) => {
+  const { _id } = req.user
   try {
     const validateBody = schema.validate(req.body)
     if(validateBody.error) {
@@ -74,7 +79,7 @@ router.post('/', async (req, res, next) => {
         message: `${validateBody.error}`
       })
     } 
-    const newContact = await addContact(req.body)
+    const newContact = await addContact(req.body, _id)
     if (typeof newContact !== "string") {
       res.status(201).json({
         status: "success",
@@ -97,10 +102,11 @@ router.post('/', async (req, res, next) => {
 
 // ======================DELETE===================================
 
-router.delete('/:contactId', async (req, res, next) => {
+router.delete('/:contactId', auth, async (req, res, next) => {
   const { contactId } = req.params
+  const userId = req.user._id
   try {
-    const contacts = await getContactById(contactId)
+    const contacts = await getContactById(contactId, userId)
     if (contacts) {
       await removeContact(contactId)
       
@@ -127,19 +133,20 @@ router.delete('/:contactId', async (req, res, next) => {
 
 // ========================PUT================================
 
-router.put('/:contactId', async (req, res, next) => {
+router.put('/:contactId', auth, async (req, res, next) => {
   const { contactId } = req.params
+  const userId = req.user._id
   try {
     const validateBody = schema.validate(req.body)
     if(validateBody.error) {
-      res.json({
+      return res.json({
         status: "error",
         code: 400,
         message: `${validateBody.error}`
       })
     }
     if (Object.keys(req.body)[0]) {
-      await updateContact(contactId, req.body)
+      await updateContact(contactId, userId, req.body)
       const contact = await getContactById(contactId)
       if (contact) {
         res.json({ 
@@ -171,10 +178,9 @@ router.put('/:contactId', async (req, res, next) => {
 
 // ================PATCH===================
 
-router.patch("/:contactId", async (req, res, next) => {
+router.patch("/:contactId", auth, async (req, res, next) => {
   const { contactId } = req.params
   const { favourites } = req.body
-  console.log(favourites)
   try {
     if (favourites === undefined) {
       return res.status(400).json({
