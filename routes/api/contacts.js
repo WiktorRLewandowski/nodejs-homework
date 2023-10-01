@@ -127,7 +127,6 @@ router.delete('/:contactId', auth, async (req, res, next) => {
     console.log(error.message)
     next(error)
   }
-  
 })
 
 
