@@ -11,7 +11,9 @@ const {
     AddUser,
     logOut,
     currentUser,
-    addAvatar
+    addAvatar,
+    verificationEmail,
+    verifyUser
 } = require('../../models/users')
 
 const User = require('../../service/schemas/usersSchema')
@@ -34,12 +36,14 @@ router.get('/', async (req, res, next)=> {
     }
 })
 
-// ==============POST===================
+
+// ==============SIGNUP===================
+
 
 router.post('/signup', async (req, res, next) => {
     const { email, password } = req.body
     const checkUser = await User.findOne({email}).lean()
-    console.log(email)
+
     if(checkUser) {
         return res.status(409).json({
             status: "error",
@@ -54,11 +58,13 @@ router.post('/signup', async (req, res, next) => {
 
         const user = await AddUser({ email, password: hashedPassword })
         if(user) {
+            const { email, verificationToken } = user
+            await verificationEmail(email, verificationToken)
             res.json({
                 status: "success",
                 code: 200,
                 data: {
-                    message: 'registration successful',
+                    message: 'registration successful, verification email sent',
                     user
                 }
             }) 
@@ -76,16 +82,28 @@ router.post('/signup', async (req, res, next) => {
     }
 })
 
+
+// ====================LOGIN===================
+
 router.post('/login', async (req, res, next) => {
     const { email, password } = req.body
     const user = await User.findOne({ email })
     const validPassword = await bcrypt.compare(password, user.password)
+    
     if (!user || !validPassword) {
         return res.status(400).json({
             status: 'error',
             code: 400,
             message: 'Incorrect login or password',
             data: 'bad request'
+        })
+    }
+
+    if (!user.verify) {
+        return res.json({
+            status: 'error',
+            code: 400,
+            message: 'You must verify your email before logging in!'
         })
     }
 
@@ -108,6 +126,9 @@ router.post('/login', async (req, res, next) => {
     })
 })
 
+
+// ====================LOGOUT=========================
+
 router.post('/logout', auth, async (req, res, next) => {
    const { _id } = req.user
    const user = await User.findOne({ _id }).lean()
@@ -127,6 +148,9 @@ router.post('/logout', auth, async (req, res, next) => {
         next(e)
    }
 })
+
+
+// =======================CURRENT================================
 
 router.get('/current', auth, async (req, res, next) => {
     const { email, subscription, _id } = req.user
@@ -151,11 +175,13 @@ router.get('/current', auth, async (req, res, next) => {
     }
 })
 
+
+// ================AVATAR=========================
+
 router.post('/avatar', auth, upload.single('avatar'), async (req, res, next) => {
     const avatar = req.file
-    const { _id } = req.user
+    const { _id, email } = req.user
     const { path } = avatar
-    const { email } = req.user
 
     if (!avatar) {
         return res.status(400).json({
@@ -177,7 +203,73 @@ router.post('/avatar', auth, upload.single('avatar'), async (req, res, next) => 
         })
     } catch(e) {
         res.status(500).json('Could not update your avatar, sorry', e.message)
+        next(e)
     }
+})
+
+
+// ======================VERIFICATION TOKEN======================
+
+
+router.get('/verify/:verificationToken', async (req, res, next) => {
+    const { verificationToken } = req.params
+
+    try {
+        const verifiedUser = await verifyUser(verificationToken)
+        if (verifiedUser) {
+            res.json({
+                status: 'success',
+                code: 200,
+                message: 'Your e-mail address has been verified successfully!'
+            })
+        } else {
+            res.status(404).json({
+                status: 'Not found',
+                code: 404,
+                message: 'User not found'
+            })
+        }
+    } catch(e) {
+        console.log(e.message)
+        next(e)
+    }
+})
+
+// ==================VERIFY=================
+
+router.post('/verify', async (req, res, next) => {
+    const { email } = req.body
+    const user = await User.findOne({ email })
+    const { verify, verificationToken } = user
+
+    try {
+        if (!email) {
+            return res.status(400).json({
+                status: 'error',
+                code: 400,
+                message: 'missing required field - email'
+            })
+        }
+    
+        if (verify) {
+            return res.status(400).json({
+                status: 'Bad Request',
+                code: 400,
+                message: "Verification has already been passed"
+            })
+        } else {
+            await verificationEmail(email, verificationToken)
+            res.json({
+                status: "success",
+                code: 200,
+                message: 'Verification e-mail sent'
+            })
+        }
+    } catch (e) {
+        console.log(e.message)
+        next(e)
+    }
+    
 })
 
 module.exports = router
